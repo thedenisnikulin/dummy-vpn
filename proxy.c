@@ -35,13 +35,11 @@ int main() {
 	}
 	
 	clientfd = accept(serverfd, (struct sockaddr *) &addr, (socklen_t *) &addrlen);
-	for (;;) {
-		if (recv(serverfd, buff, BUFF_SIZE, 0) < 0) {
-			perror("recv failure");
-			shutdown(serverfd, SHUT_RDWR);
-			return 1;
-		}
-		printf("msg: %s\n", buff);
+
+	if (recv(serverfd, buff, BUFF_SIZE, 0) < 0) {
+		perror("recv failure");
+		return 1;
 	}
 
+	printf("msg: %s\n", buff);
 }
