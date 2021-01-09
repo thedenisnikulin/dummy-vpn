@@ -9,7 +9,7 @@
 #include <arpa/inet.h>	// for inet_addr()
 #include "original.h"
 
-#define PROXY_ADDR "some secret addres that's not for public view"
+#define PROXY_ADDR "18.159.133.14"
 
 t_connect_func original_connect;
 t_send_func original_send;
@@ -27,11 +27,12 @@ int connect(int fd, const struct sockaddr *addr, socklen_t len)
 	struct sockaddr_in *casted_addr;
 
 	casted_addr = (struct sockaddr_in *) addr;
-
-	char *outaddr = inet_ntoa(casted_addr->sin_addr);
-	
-	/* DNS lookup - skip for now */
-	if (strcmp(outaddr, "127.0.0.53") == 0)
+	// todo PORT
+	// save addr as a global var
+	char *dottedaddr = inet_ntoa(casted_addr->sin_addr);
+	printf("ADDRESS: %s\n", dottedaddr);	
+	/* DNS lookup - skip for now. Also, skip no-IP connections (e.g. AF_UNIX). */
+	if ((strcmp(dottedaddr, "127.0.0.53") == 0) || (casted_addr->sin_family != AF_INET))
 	{
 		return (*original_connect)(fd, addr, len);
 	}
