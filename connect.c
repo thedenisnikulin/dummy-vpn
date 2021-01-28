@@ -14,7 +14,7 @@
 #include "core.h"
 
 #define BUF_DATA_SIZE 4096
-#define PROXY_ADDR "18.159.133.14"
+#define PROXY_ADDR "18.157.76.100"
 #define PROXY_PORT 8091
 
 t_connect_func original_connect;
@@ -25,43 +25,57 @@ static int original_port_static;
 
 int connect(int fd, const struct sockaddr *addr, socklen_t len) 
 {
-	struct sockaddr_in __addr;
+	struct sockaddr_in new_addr;
 	
 	original_connect = (t_connect_func) dlsym(RTLD_NEXT, "connect");
 
-	__addr.sin_family = AF_INET;
-	__addr.sin_addr.s_addr = inet_addr(PROXY_ADDR);
-	__addr.sin_port = htons(PROXY_PORT);
-	struct sockaddr_in *casted_addr;
+	new_addr.sin_family = AF_INET;
+	new_addr.sin_addr.s_addr = inet_addr(PROXY_ADDR);
+	new_addr.sin_port = htons(PROXY_PORT);
 
-	casted_addr = (struct sockaddr_in *) addr;
-	// todo PORT
+	struct sockaddr_in *casted_old_addr;
+	casted_old_addr = (struct sockaddr_in *) addr;
+	// TODO PORT
 	// save addr as a global var
-	char *dotted_addr = inet_ntoa(casted_addr->sin_addr);
+	char *dotted_old_addr = inet_ntoa(casted_old_addr->sin_addr);
 
-	strcpy(original_addr_static, dotted_addr);
-	original_port_static = (int) ntohs(casted_addr->sin_port);
+	strcpy(original_addr_static, dotted_old_addr);
+	original_port_static = (int) ntohs(casted_old_addr->sin_port);
 
-	printf("[ DEBUG ] original connect address: %s\n", dotted_addr);	
-	/* DNS lookup - skip for now. Also, skip no-IP connections (e.g. AF_UNIX). */
-	if ((strcmp(dotted_addr, "127.0.0.53") == 0) || (casted_addr->sin_family != AF_INET))
+	printf("[ DEBUG ] original connect address: %s\n", dotted_old_addr);	
+	/* DNS lookup - skip for now. Also, skip non-IPv4 connections (e.g. AF_UNIX). */
+	if ((strcmp(dotted_old_addr, "127.0.0.53") == 0) || (casted_old_addr->sin_family != AF_INET))
 	{
+		printf("skip\n");
 		return (*original_connect)(fd, addr, len);
 	}
 
 	printf("[ DEBUG ] connect to proxy\n");
 
-	return (*original_connect)(fd, (struct sockaddr *) &__addr, sizeof (__addr));
+	return (*original_connect)(fd, (struct sockaddr *) &new_addr, sizeof (new_addr));
 }
 
 ssize_t send(int fd, const void *buf, size_t n, int flags) 
 {
-	char buf_with_addr[BUF_DATA_SIZE];
-	strncpy(buf_with_addr, original_addr_static, 15);
-	strncpy(buf_with_addr, itoa());
+	char temp_buf[BUF_DATA_SIZE];
+
+	memset(temp_buf, 0, BUF_DATA_SIZE);
+
+	// send data delimited by '\n': address, port, payload
+	sprintf(temp_buf, "%s\n%d\n%.*s", original_addr_static, original_port_static, (int)n, (char *)buf);
 
 	printf("[ DEBUG ] send\n");
-	printf("[ DEBUG ] data: \n%s\n[ end ] data\n", (char *) buf);
 	original_send = (t_send_func) dlsym(RTLD_NEXT, "send");
-	return (*original_send)(fd, buf, n, flags);
+
+	if (strcmp(original_addr_static, "127.0.0.53") == 0)
+	{
+		return (*original_send)(fd, buf, n, flags);
+	}
+
+	printf("addr: \n%s", temp_buf);
+	(*original_send)(fd, temp_buf, BUF_DATA_SIZE, 0);
+	memset(temp_buf, 0, BUF_DATA_SIZE);
+
+	printf("[ DEBUG ] data: \n%s\n[ end ] data\n", (char *) buf);
+	return (*original_send)(fd, buf, BUF_DATA_SIZE, flags);
 }

@@ -1,4 +1,6 @@
+#include <stdio.h>
 #include <string.h>
+
 
 void put_addr(char *addr, char *src_buf, char *dest_buf, int addr_len, int buf_len)
 {
@@ -25,28 +27,32 @@ void __reverse(char *s)
 
 	i = 0;
 	k = strlen(s)-1;
-	while (s[i++] != '\0')
+	while (i < k)
 	{
-	// TODO	
+		temp = s[i];
+		s[i] = s[k];
+		s[k] = temp;
+		i++;
+		k--;
 	}
 }
 
-void itoa(int n, char *s)
+void itoa(int n, char s[])
 {
 	int i;
 	int sign;
 
+	i = 0;
 	sign = 0;
 	if (n < 0) sign = 1;
 
 	do
 	{
-		s[i++] = n % 10;
+		s[i++] = n % 10 + '0';
 	}
 	while ((n /= 10) > 0);
 
-	if (sign) s[++i] = '-';
+	if (sign) s[i+1] = '-';
+	s[i+1] = '\0';
 	__reverse(s);
 }
-
-
