@@ -8,8 +8,9 @@
 
 #define SERVER_PORT 8091
 #define SERVER_BACKLOG 10
-
 #define BUF_DATA_SIZE 4096
+#define CONN_ESTABLISHED "HTTP/1.0 200 Connection established\r\n\r\n"
+
 
 static char remote_addr_static[15];
 
@@ -51,6 +52,8 @@ int main()
 			perror("recv data");
 			close(server_sockfd);
 		}
+		send(client_sockfd, CONN_ESTABLISHED, strlen(CONN_ESTABLISHED), 0);
+
 		memcpy(temp_buf, buf_client_data, BUF_DATA_SIZE);
 		printf("[ <- ] client: data: \n%s\n", buf_client_data);
 
@@ -64,7 +67,6 @@ int main()
 		if ((fork_return = fork()) == 0)
 		{
 			close(pipefd[0]);
-			temp = parse_addr(buf_client_data, BUF_DATA_SIZE);
 
 			line_token = strtok(temp_buf, "\n"); // get addr
 			remote_sockfd = socket(AF_INET, SOCK_STREAM, 0);
